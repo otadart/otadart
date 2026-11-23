@@ -60,3 +60,141 @@ class UpdatePolicy {
     }
   }
 }
+
+/// A patch installed on this device.
+class OtaPatch {
+  /// The patch number, the same on every platform of a release (1, 2, 3…).
+  final int number;
+  const OtaPatch(this.number);
+  @override
+  bool operator ==(Object other) => other is OtaPatch && other.number == number;
+  @override
+  int get hashCode => number.hashCode;
+  @override
+  String toString() => 'Patch #$number';
+}
+
+/// What the update service offers this device right now.
+enum UpdateAvailability {
+  /// The device already runs (or has staged) what its track serves.
+  upToDate,
+
+  /// A newer patch can be downloaded.
+  patchAvailable,
+
+  /// The track was rolled back to the store build.
+  rollbackAvailable,
+
+  /// An update is already downloaded and applies on the next launch.
+  readyOnNextLaunch,
+}
+
+/// Result of [OtaDart.availableUpdate]: nothing is downloaded.
+class AvailableUpdate {
+  final UpdateAvailability availability;
+
+  /// Patch number offered (0 when rolling back to the store build).
+  final int patchNumber;
+
+  /// Bytes to download, 0 when nothing needs downloading.
+  final int downloadBytes;
+  const AvailableUpdate(
+    this.availability, {
+    this.patchNumber = 0,
+    this.downloadBytes = 0,
+  });
+  bool get hasUpdate =>
+      availability == UpdateAvailability.patchAvailable ||
+      availability == UpdateAvailability.rollbackAvailable;
+  @override
+  String toString() =>
+      'AvailableUpdate(${availability.name}, '
+      'patch: $patchNumber, bytes: $downloadBytes)';
+}
+
+/// Everything the app can know about its release and patches.
+class OtaDartInfo {
+  /// App ID from otadart.yaml.
+  final String appId;
+
+  /// Release version from pubspec.yaml at `otadart release` (e.g. 1.2.0+5).
+  /// Null for releases built before this field existed.
+  final String? releaseVersion;
+
+  /// Build flavor, if the release used one.
+  final String? flavor;
+
+  /// OTADart release ID.
+  final String releaseId;
+
+  /// android, ios, macos, windows or linux.
+  final String platform;
+
+  /// CPU architecture, e.g. arm64.
+  final String arch;
+
+  /// Track this build receives patches from (e.g. stable, beta).
+  final String track;
+
+  /// Patch running right now, or null for the store build.
+  final OtaPatch? currentPatch;
+
+  /// Patch downloaded and applied on the next launch, if any.
+  final OtaPatch? nextPatch;
+
+  /// True when this launch has not been confirmed healthy yet.
+  final bool healthCheckPending;
+
+  /// True when the last patched launch failed and the app fell back.
+  final bool recoveredFromFailedLaunch;
+
+  /// Patches this device refused after a failed launch.
+  final int failedPatchCount;
+
+  /// Stable, anonymous ID used for staged rollouts.
+  final String installationId;
+
+  /// Update service URL.
+  final Uri endpoint;
+
+  const OtaDartInfo({
+    required this.appId,
+    required this.releaseVersion,
+    required this.flavor,
+    required this.releaseId,
+    required this.platform,
+    required this.arch,
+    required this.track,
+    required this.currentPatch,
+    required this.nextPatch,
+    required this.healthCheckPending,
+    required this.recoveredFromFailedLaunch,
+    required this.failedPatchCount,
+    required this.installationId,
+    required this.endpoint,
+  });
+
+  /// e.g. "1.2.0+5 · patch #3" or "1.2.0+5 · store build".
+  String get label =>
+      '${releaseVersion ?? releaseId} · '
+      '${currentPatch == null ? 'store build' : 'patch #${currentPatch!.number}'}';
+
+  Map<String, Object?> toJson() => {
+    'appId': appId,
+    'releaseVersion': releaseVersion,
+    'flavor': flavor,
+    'releaseId': releaseId,
+    'platform': platform,
+    'arch': arch,
+    'track': track,
+    'currentPatch': currentPatch?.number,
+    'nextPatch': nextPatch?.number,
+    'healthCheckPending': healthCheckPending,
+    'recoveredFromFailedLaunch': recoveredFromFailedLaunch,
+    'failedPatchCount': failedPatchCount,
+    'installationId': installationId,
+    'endpoint': endpoint.toString(),
+  };
+  @override
+  String toString() => 'OtaDartInfo($label, track: $track, $platform/$arch)';
+}

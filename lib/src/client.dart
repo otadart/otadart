@@ -19,6 +19,12 @@ class OtaDart {
   final Uri endpoint;
   final Map<String, Object?> release;
   final String installationId;
+
+  /// Release version (pubspec.yaml at `otadart release`), if the build has it.
+  final String? releaseVersion;
+
+  /// Build flavor, if the release used one.
+  final String? flavor;
   final HttpClient _http;
   final Duration timeout;
   final _progress = StreamController<UpdateProgress>.broadcast();
@@ -62,6 +68,40 @@ class OtaDart {
     }
   }
 
+  /// True when this app was built with `otadart release` and can receive
+  /// patches. Returns false in `flutter run` debug builds and plain builds.
+  static Future<bool> isSupported({String? runtimeLibraryPath}) async {
+    try {
+      final native = await NativeBridge.open(libraryPath: runtimeLibraryPath);
+      try {
+        await native.call({'operation': 'clientConfiguration'});
+        return true;
+      } finally {
+        await native.close();
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Like [initialize], but returns null instead of throwing when the app
+  /// was not built with OTADart (for example during `flutter run`).
+  static Future<OtaDart?> tryInitialize({
+    required String appId,
+    String? publicKey,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    try {
+      return await initialize(
+        appId: appId,
+        publicKey: publicKey,
+        timeout: timeout,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Timer? _automaticTimer;
   int _scheduleGeneration = 0;
   OtaDart._(
@@ -69,10 +109,13 @@ class OtaDart {
     this.endpoint,
     this.release,
     this.installationId,
-    this.timeout,
-  ) : _http = HttpClient() {
+    this.timeout, {
+    this.releaseVersion,
+    this.flavor,
+  }) : _http = HttpClient() {
     _http.connectionTimeout = timeout;
   }
+
   /// Update progress events (checking, downloading, ready, failed…).
   Stream<UpdateProgress> get progress => _progress.stream;
 
@@ -187,6 +230,12 @@ class OtaDart {
       Map.unmodifiable(release),
       installationId,
       timeout,
+      releaseVersion: manifest['version'] is String
+          ? manifest['version'] as String
+          : null,
+      flavor: manifest['flavor'] is String
+          ? manifest['flavor'] as String
+          : null,
     );
     client.startAutomaticUpdates(policy);
     return client;
@@ -274,6 +323,7 @@ class OtaDart {
       _closed
       ? Future.error(const OtaDartException('Client is closed'))
       : _native.call(request);
+
   /// Current update state on this device.
   Future<Map<String, Object?>> status() => _publicCall({'operation': 'status'});
   @internal
@@ -298,7 +348,130 @@ class OtaDart {
     return token is String ? markHealthy(token) : status();
   }
 
-  /// Check for a patch now. Concurrent calls share one check.
+  /// The track this build receives patches from (e.g. stable, beta).
+  String get track => release['channel'] as String;
+
+  /// The app ID this build was released for.
+  String get appId => release['appId'] as String;
+
+  /// The patch running right now, or null when the store build is running.
+  Future<OtaPatch?> currentPatch() async {
+    int number;
+    try {
+      number = (await bootInfo())['patchNumber'] as int? ?? 0;
+    } on OtaDartException {
+      number = (await status())['activePatch'] as int? ?? 0;
+    }
+    return number > 0 ? OtaPatch(number) : null;
+  }
+
+  /// The patch already downloaded that applies on the next launch, if any.
+  Future<OtaPatch?> nextPatch() async {
+    final state = await status();
+    final next = state['nextPatch'] as int? ?? 0;
+    final current = (await currentPatch())?.number ?? 0;
+    return next > 0 && next != current ? OtaPatch(next) : null;
+  }
+
+  /// Everything about this release and its patches, in one call.
+  Future<OtaDartInfo> info() async {
+    final state = await status();
+    Map<String, Object?> boot = const {};
+    try {
+      boot = await bootInfo();
+    } on OtaDartException {
+      // Standalone runtimes have no engine launch record.
+    }
+    final current =
+        (boot['patchNumber'] as int?) ?? (state['activePatch'] as int? ?? 0);
+    final next = state['nextPatch'] as int? ?? 0;
+    return OtaDartInfo(
+      appId: appId,
+      releaseVersion: releaseVersion,
+      flavor: flavor,
+      releaseId: release['releaseId'] as String,
+      platform: release['platform'] as String,
+      arch: release['arch'] as String,
+      track: track,
+      currentPatch: current > 0 ? OtaPatch(current) : null,
+      nextPatch: next > 0 && next != current ? OtaPatch(next) : null,
+      healthCheckPending: state['bootPending'] == true,
+      recoveredFromFailedLaunch: boot['recoveredFromFailedBoot'] == true,
+      failedPatchCount: state['badPatchCount'] as int? ?? 0,
+      installationId: installationId,
+      endpoint: endpoint,
+    );
+  }
+
+  /// Ask the update service what it offers, without downloading anything.
+  Future<AvailableUpdate> availableUpdate() async {
+    if (_closed) throw const OtaDartException('Client is closed');
+    final offer = await _fetchOffer();
+    final plan = await _native.call({
+      'operation': 'verifyOffer',
+      'offer': offer,
+      'nowMs': DateTime.now().millisecondsSinceEpoch,
+    });
+    final action = plan['action'];
+    if (action == 'none')
+      return const AvailableUpdate(UpdateAvailability.upToDate);
+    final state = await status();
+    final active = state['activePatch'] as int? ?? 0;
+    final next = state['nextPatch'] as int? ?? 0;
+    if (action == 'base') {
+      if (next == 0) {
+        return active == 0
+            ? const AvailableUpdate(UpdateAvailability.upToDate)
+            : const AvailableUpdate(UpdateAvailability.readyOnNextLaunch);
+      }
+      return const AvailableUpdate(UpdateAvailability.rollbackAvailable);
+    }
+    final number = plan['patchNumber'] as int;
+    if (next == number) {
+      return AvailableUpdate(
+        active == number
+            ? UpdateAvailability.upToDate
+            : UpdateAvailability.readyOnNextLaunch,
+        patchNumber: number,
+      );
+    }
+    return AvailableUpdate(
+      UpdateAvailability.patchAvailable,
+      patchNumber: number,
+      downloadBytes: plan['downloadRequired'] == true
+          ? plan['transferSize'] as int? ?? 0
+          : 0,
+    );
+  }
+
+  /// Download and stage the update if one is available. Same as
+  /// [checkForUpdate]; the update applies on the next launch.
+  Future<UpdateResult> update() => checkForUpdate();
+
+  Future<Map<String, Object?>> _fetchOffer() async {
+    final request = await _http
+        .postUrl(endpoint.resolve('/v1/check'))
+        .timeout(timeout);
+    request.followRedirects = false;
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode({...release, 'clientId': installationId}));
+    final response = await request.close().timeout(timeout);
+    if (response.statusCode != 200) {
+      await response.take(1).drain<void>().timeout(timeout);
+      throw OtaDartException('Update check failed (${response.statusCode})');
+    }
+    final bytes = <int>[];
+    await for (final chunk in response.timeout(timeout)) {
+      if (bytes.length + chunk.length > 65536) {
+        throw const OtaDartException('Update response too large');
+      }
+      bytes.addAll(chunk);
+    }
+    return Map<String, Object?>.from(jsonDecode(utf8.decode(bytes)) as Map);
+  }
+
+  /// Check for a patch now and download it if there is one. It applies on the
+  /// next launch. Concurrent calls share one check.
   Future<UpdateResult> checkForUpdate() {
     if (_closed)
       return Future.error(const OtaDartException('Client is closed'));
@@ -311,26 +484,7 @@ class OtaDart {
     Directory? temporary;
     try {
       _emit(const UpdateProgress(UpdatePhase.checking));
-      final request = await _http
-          .postUrl(endpoint.resolve('/v1/check'))
-          .timeout(timeout);
-      request.followRedirects = false;
-      request.headers.contentType = ContentType.json;
-      request.write(jsonEncode({...release, 'clientId': installationId}));
-      final response = await request.close().timeout(timeout);
-      if (response.statusCode != 200) {
-        await response.take(1).drain<void>().timeout(timeout);
-        throw OtaDartException('Update check failed (${response.statusCode})');
-      }
-      final bytes = <int>[];
-      await for (final chunk in response.timeout(timeout)) {
-        if (bytes.length + chunk.length > 65536)
-          throw const OtaDartException('Update response too large');
-        bytes.addAll(chunk);
-      }
-      final offer = Map<String, Object?>.from(
-        jsonDecode(utf8.decode(bytes)) as Map,
-      );
+      final offer = await _fetchOffer();
       final plan = await _native.call({
         'operation': 'verifyOffer',
         'offer': offer,

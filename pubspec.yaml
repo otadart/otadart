@@ -4,7 +4,7 @@ homepage: https://otadart.dev
 documentation: https://otadart.dev/docs/sdk
 repository: https://github.com/otadart/otadart
 issue_tracker: https://otadart.dev/support
-version: 0.1.0-dev.1
+version: 0.1.0-dev.2
 environment:
   sdk: '>=3.8.0 <4.0.0'
 dependencies:

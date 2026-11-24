@@ -90,8 +90,24 @@ updates.startAutomaticUpdates(const UpdatePolicy(automatic: true, interval: Dura
 | `progress` / `currentProgress` | Update progress events |
 | `startAutomaticUpdates(policy)` / `stopAutomaticUpdates()` | Check on a schedule |
 | `markCurrentBootHealthy()` | Confirm this launch works (enables automatic fallback) |
+| `canRestart` / `restart()` | Web only: reload the page onto the newest build |
 | `track`, `appId`, `releaseVersion` | Build details, available instantly |
 | `close()` | Release resources |
+
+## Web
+
+Flutter web works with the same code. There are no patches on the web — you deploy a new build — but open tabs keep running the old one. On the web `OtaDart` compares the running build with the `version.json` that `flutter build web` writes, and tells you when a newer build is live:
+
+```dart
+final updates = await OtaDart.tryInitialize(appId: 'YOUR_APP_ID');
+final offer = await updates?.availableUpdate();
+if (offer != null && offer.hasUpdate) {
+  // e.g. show "A new version (${offer.version}) is available — Reload"
+  if (updates!.canRestart) await updates.restart(); // reloads the page
+}
+```
+
+`info().label` reads like `1.2.0+5 · web`. `startAutomaticUpdates` checks on a schedule here too. Serve `version.json` without long caching so new deploys are seen.
 
 ## Requirements
 

@@ -347,6 +347,16 @@ class OtaDart {
   Future<Map<String, Object?>> markHealthy(String bootToken) =>
       _publicCall({'operation': 'markHealthy', 'bootToken': bootToken});
 
+  /// False on mobile and desktop: a downloaded patch applies the next time
+  /// the user opens the app. True on the web, where [restart] reloads the page.
+  bool get canRestart => false;
+
+  /// On the web, reloads onto the newest build. Elsewhere the patch applies on
+  /// the next launch, so this throws [OtaDartException].
+  Future<void> restart() async => throw const OtaDartException(
+    'Restart the app to apply the update: it applies on the next launch.',
+  );
+
   /// Call only after your app's startup health checks have passed.
   Future<Map<String, Object?>> markCurrentBootHealthy() async {
     final info = await bootInfo();

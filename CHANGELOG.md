@@ -1,3 +1,8 @@
+## 0.1.0-dev.6
+
+- Web support: the package now compiles for Flutter web (JavaScript and WebAssembly). On the web it detects a newer deployed build from `version.json`; `availableUpdate()` reports its `version`, and `restart()` reloads the page onto it. Same API on every platform.
+- New `canRestart` and `restart()` (on mobile and desktop a patch still applies on the next launch).
+
 ## 0.1.0-dev.5
 
 - Follow another track at runtime: `update(track: UpdateTrack.beta)`, `availableUpdate(track: 'qa')`, or set `preferredTrack` once.

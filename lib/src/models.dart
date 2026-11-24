@@ -98,10 +98,14 @@ class AvailableUpdate {
 
   /// Bytes to download, 0 when nothing needs downloading.
   final int downloadBytes;
+
+  /// On the web: the newer build version that is live (e.g. `1.2.1+6`).
+  final String? version;
   const AvailableUpdate(
     this.availability, {
     this.patchNumber = 0,
     this.downloadBytes = 0,
+    this.version,
   });
   bool get hasUpdate =>
       availability == UpdateAvailability.patchAvailable ||
@@ -109,7 +113,8 @@ class AvailableUpdate {
   @override
   String toString() =>
       'AvailableUpdate(${availability.name}, '
-      'patch: $patchNumber, bytes: $downloadBytes)';
+      'patch: $patchNumber, bytes: $downloadBytes'
+      '${version == null ? '' : ', version: $version'})';
 }
 
 /// Everything the app can know about its release and patches.
@@ -127,7 +132,7 @@ class OtaDartInfo {
   /// OTADart release ID.
   final String releaseId;
 
-  /// android, ios, macos, windows or linux.
+  /// android, ios, macos, windows, linux or web.
   final String platform;
 
   /// CPU architecture, e.g. arm64.
@@ -174,10 +179,11 @@ class OtaDartInfo {
     required this.endpoint,
   });
 
-  /// e.g. "1.2.0+5 · patch #3" or "1.2.0+5 · store build".
-  String get label =>
-      '${releaseVersion ?? 'release ${releaseId.replaceFirst('r-', '').substring(0, 8)}'} · '
-      '${currentPatch == null ? 'store build' : 'patch #${currentPatch!.number}'}';
+  /// e.g. "1.2.0+5 · patch #3", "1.2.0+5 · store build" or "1.2.0+5 · web".
+  String get label => platform == 'web'
+      ? '${releaseVersion ?? 'web'} · web'
+      : '${releaseVersion ?? 'release ${releaseId.replaceFirst('r-', '').substring(0, 8)}'} · '
+            '${currentPatch == null ? 'store build' : 'patch #${currentPatch!.number}'}';
 
   Map<String, Object?> toJson() => {
     'appId': appId,

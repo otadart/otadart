@@ -1,3 +1,5 @@
+<p><img src="https://otadart.dev/brand/logo-96.png" width="48" height="48" alt="OTADart"></p>
+
 # otadart
 
 Connect your Flutter app to [OTADart](https://otadart.dev) — over-the-air Dart updates for Android and iOS.

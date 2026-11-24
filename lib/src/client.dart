@@ -409,10 +409,25 @@ class OtaDart {
     );
   }
 
+  /// The track update checks use when none is given. Starts as the track
+  /// the app was released with; set it (e.g. from a testers' menu) to follow
+  /// beta or a custom track. `null` goes back to the built-in track.
+  String? get preferredTrack => _preferredTrack;
+  set preferredTrack(String? value) {
+    if (value != null &&
+        !RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$').hasMatch(value)) {
+      throw OtaDartException('Invalid track name: $value');
+    }
+    _preferredTrack = value;
+  }
+
+  String? _preferredTrack;
+
   /// Ask the update service what it offers, without downloading anything.
-  Future<AvailableUpdate> availableUpdate() async {
+  /// [track] checks another track, e.g. `UpdateTrack.beta` or `'qa'`.
+  Future<AvailableUpdate> availableUpdate({String? track}) async {
     if (_closed) throw const OtaDartException('Client is closed');
-    final offer = await _fetchOffer();
+    final offer = await _fetchOffer(track);
     final plan = await _native.call({
       'operation': 'verifyOffer',
       'offer': offer,
@@ -453,15 +468,55 @@ class OtaDart {
 
   /// Download and stage the update if one is available. Same as
   /// [checkForUpdate]; the update applies on the next launch.
-  Future<UpdateResult> update() => checkForUpdate();
+  /// [track] follows another track, e.g. `update(track: UpdateTrack.beta)`.
+  Future<UpdateResult> update({String? track}) => checkForUpdate(track: track);
 
-  Future<Map<String, Object?>> _fetchOffer() async {
+  /// What the device runs and whether its last patched launch failed.
+  /// Lets the console show adoption and roll a broken patch back for
+  /// everyone. Contains no personal data.
+  Future<Map<String, Object?>> _launchReport() async {
+    try {
+      Map<String, Object?> boot = const {};
+      try {
+        boot = await bootInfo();
+      } on OtaDartException {
+        // Standalone runtimes have no engine launch record.
+      }
+      final current =
+          boot['patchNumber'] as int? ??
+          (await status())['activePatch'] as int? ??
+          0;
+      final state = await status();
+      return {
+        'currentPatch': current,
+        if (state['highestRevision'] is int)
+          'highestRevision': state['highestRevision'],
+        if (boot['recoveredFromFailedBoot'] == true) 'recovered': true,
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<Map<String, Object?>> _fetchOffer([String? track]) async {
+    final wanted = track ?? _preferredTrack;
+    if (wanted != null &&
+        !RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$').hasMatch(wanted)) {
+      throw OtaDartException('Invalid track name: $wanted');
+    }
     final request = await _http
         .postUrl(endpoint.resolve('/v1/check'))
         .timeout(timeout);
     request.followRedirects = false;
     request.headers.contentType = ContentType.json;
-    request.write(jsonEncode({...release, 'clientId': installationId}));
+    request.write(
+      jsonEncode({
+        ...release,
+        'clientId': installationId,
+        if (wanted != null && wanted != release['channel']) 'track': wanted,
+        ...await _launchReport(),
+      }),
+    );
     final response = await request.close().timeout(timeout);
     if (response.statusCode != 200) {
       await response.take(1).drain<void>().timeout(timeout);
@@ -479,20 +534,20 @@ class OtaDart {
 
   /// Check for a patch now and download it if there is one. It applies on the
   /// next launch. Concurrent calls share one check.
-  Future<UpdateResult> checkForUpdate() {
+  Future<UpdateResult> checkForUpdate({String? track}) {
     if (_closed) {
       return Future.error(const OtaDartException('Client is closed'));
     }
-    return _inFlight ??= _check().whenComplete(() {
+    return _inFlight ??= _check(track).whenComplete(() {
       _inFlight = null;
     });
   }
 
-  Future<UpdateResult> _check() async {
+  Future<UpdateResult> _check([String? track]) async {
     Directory? temporary;
     try {
       _emit(const UpdateProgress(UpdatePhase.checking));
-      final offer = await _fetchOffer();
+      final offer = await _fetchOffer(track);
       final plan = await _native.call({
         'operation': 'verifyOffer',
         'offer': offer,

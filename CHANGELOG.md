@@ -1,3 +1,8 @@
+## 0.1.0-dev.5
+
+- Follow another track at runtime: `update(track: UpdateTrack.beta)`, `availableUpdate(track: 'qa')`, or set `preferredTrack` once.
+- Update checks report the running patch and failed launches, so the console shows installs and patch adoption, and a broken patch is rolled back automatically for everyone. No personal data is sent.
+
 ## 0.1.0-dev.4
 
 - Android: finds the OTADart engine automatically (opens libflutter.so), so patches download and apply in release builds.

@@ -198,3 +198,16 @@ class OtaDartInfo {
   @override
   String toString() => 'OtaDartInfo($label, track: $track, $platform/$arch)';
 }
+
+/// Track names for `update(track: …)`. Any custom track name works too,
+/// e.g. `update(track: 'qa-internal')`.
+abstract final class UpdateTrack {
+  /// Everyone (the default for most apps).
+  static const stable = 'stable';
+
+  /// Testers trying a patch before everyone.
+  static const beta = 'beta';
+
+  /// Your team, before beta.
+  static const staging = 'staging';
+}

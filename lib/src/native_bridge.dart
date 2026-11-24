@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 import 'models.dart';
@@ -50,8 +51,9 @@ class NativeBridge {
     ]);
     try {
       final result = Map<String, Object?>.from(await ready.first as Map);
-      if (result['error'] != null)
+      if (result['error'] != null) {
         throw OtaDartException(result['error'] as String);
+      }
       return NativeBridge._(isolate, result['port'] as SendPort, responses);
     } catch (_) {
       isolate.kill(priority: Isolate.immediate);
@@ -63,8 +65,9 @@ class NativeBridge {
   }
 
   Future<Map<String, Object?>> call(Map<String, Object?> request) {
-    if (_closed)
+    if (_closed) {
       return Future.error(const OtaDartException('Client is closed'));
+    }
     return _enqueue(request);
   }
 
@@ -96,9 +99,13 @@ void _workerMain(List<Object?> args) {
   final config = args[3] as Map<String, Object?>?;
   Pointer<Void> handle = nullptr;
   try {
-    final library = path == null
-        ? DynamicLibrary.process()
-        : DynamicLibrary.open(path);
+    // On Android the OTADart engine is libflutter.so, loaded privately by the
+    // app, so it has to be opened by name. Elsewhere it is in the process.
+    final library = path != null
+        ? DynamicLibrary.open(path)
+        : Platform.isAndroid
+        ? DynamicLibrary.open('libflutter.so')
+        : DynamicLibrary.process();
     final free = library.lookupFunction<_FreeNative, _Free>(
       'otadart_string_free',
     );
@@ -147,11 +154,13 @@ void _workerMain(List<Object?> args) {
         Pointer<Utf8> output = nullptr;
         try {
           output = call != null ? call(handle, input) : globalCall!(input);
-          if (output == nullptr)
+          if (output == nullptr) {
             throw const OtaDartException('Native runtime returned no response');
+          }
           final decoded = jsonDecode(output.toDartString()) as Map;
-          if (decoded['ok'] != true)
+          if (decoded['ok'] != true) {
             throw OtaDartException(decoded['error'].toString());
+          }
           responses.send({'id': id, 'value': decoded['value']});
         } finally {
           calloc.free(input);

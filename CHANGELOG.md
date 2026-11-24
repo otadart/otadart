@@ -1,3 +1,12 @@
+## 0.1.0-dev.4
+
+- Android: finds the OTADart engine automatically (opens libflutter.so), so patches download and apply in release builds.
+- `info().releaseVersion` and `label` show the release version with every engine build.
+
+## 0.1.0-dev.3
+
+- Code style: all recommended Dart lints pass.
+
 ## 0.1.0-dev.2
 
 - `info()`: release version, current and next patch number, track, platform, health — in one call.

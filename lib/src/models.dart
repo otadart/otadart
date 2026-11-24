@@ -176,7 +176,7 @@ class OtaDartInfo {
 
   /// e.g. "1.2.0+5 · patch #3" or "1.2.0+5 · store build".
   String get label =>
-      '${releaseVersion ?? releaseId} · '
+      '${releaseVersion ?? 'release ${releaseId.replaceFirst('r-', '').substring(0, 8)}'} · '
       '${currentPatch == null ? 'store build' : 'patch #${currentPatch!.number}'}';
 
   Map<String, Object?> toJson() => {

@@ -135,8 +135,9 @@ class OtaDart {
         } catch (_) {
           /* Reported through progress; keep the running app. */
         }
-        if (!_closed && generation == _scheduleGeneration)
+        if (!_closed && generation == _scheduleGeneration) {
           schedule(policy.interval);
+        }
       });
     }
 
@@ -195,8 +196,9 @@ class OtaDart {
   }) async {
     if (manifest['schema'] != 1 ||
         manifest['runtime'] is! Map ||
-        manifest['endpoint'] is! String)
+        manifest['endpoint'] is! String) {
       throw const OtaDartException('Invalid embedded release manifest');
+    }
     final runtime = Map<String, Object?>.from(manifest['runtime'] as Map);
     final release = {
       for (final key in [
@@ -215,8 +217,9 @@ class OtaDart {
     if (update['autoUpdate'] is! bool ||
         update['checkIntervalSeconds'] is! int ||
         update['activation'] != 'next_launch' ||
-        update['verification'] != 'strict')
+        update['verification'] != 'strict') {
       throw const OtaDartException('Unsupported embedded update policy');
+    }
     final policy = UpdatePolicy(
       automatic: update['autoUpdate'] as bool,
       interval: Duration(seconds: update['checkIntervalSeconds'] as int),
@@ -230,9 +233,10 @@ class OtaDart {
       Map.unmodifiable(release),
       installationId,
       timeout,
+      // Newer engines pass the top-level version; every engine passes `update`.
       releaseVersion: manifest['version'] is String
           ? manifest['version'] as String
-          : null,
+          : (manifest['update'] as Map?)?['releaseVersion'] as String?,
       flavor: manifest['flavor'] is String
           ? manifest['flavor'] as String
           : null,
@@ -292,8 +296,9 @@ class OtaDart {
         endpoint.userInfo.isNotEmpty ||
         endpoint.hasQuery ||
         endpoint.hasFragment ||
-        (endpoint.path.isNotEmpty && endpoint.path != '/'))
+        (endpoint.path.isNotEmpty && endpoint.path != '/')) {
       throw const OtaDartException('Endpoint must be an origin URL');
+    }
     final identifier = RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$');
     const requiredFields = [
       'appId',
@@ -308,10 +313,11 @@ class OtaDart {
     if (!identifier.hasMatch(clientId) ||
         requiredFields.any(
           (key) => release[key] is! String || (release[key] as String).isEmpty,
-        ))
+        )) {
       throw const OtaDartException(
         'Release identity and persistent installation ID required',
       );
+    }
   }
 
   void _emit(UpdateProgress value) {
@@ -413,8 +419,9 @@ class OtaDart {
       'nowMs': DateTime.now().millisecondsSinceEpoch,
     });
     final action = plan['action'];
-    if (action == 'none')
+    if (action == 'none') {
       return const AvailableUpdate(UpdateAvailability.upToDate);
+    }
     final state = await status();
     final active = state['activePatch'] as int? ?? 0;
     final next = state['nextPatch'] as int? ?? 0;
@@ -473,8 +480,9 @@ class OtaDart {
   /// Check for a patch now and download it if there is one. It applies on the
   /// next launch. Concurrent calls share one check.
   Future<UpdateResult> checkForUpdate() {
-    if (_closed)
+    if (_closed) {
       return Future.error(const OtaDartException('Client is closed'));
+    }
     return _inFlight ??= _check().whenComplete(() {
       _inFlight = null;
     });
@@ -500,8 +508,9 @@ class OtaDart {
         final size = plan['transferSize'] as int;
         if (!RegExp(r'^/v1/artifacts/[a-f0-9]{64}$').hasMatch(path) ||
             size <= 0 ||
-            size > 33554432)
+            size > 33554432) {
           throw const OtaDartException('Invalid download plan');
+        }
         temporary = await Directory.systemTemp.createTemp('otadart-transfer-');
         artifact = '${temporary.path}${Platform.pathSeparator}download';
         final downloadRequest = await _http
@@ -523,8 +532,9 @@ class OtaDart {
         try {
           await for (final chunk in download.timeout(timeout)) {
             received += chunk.length;
-            if (received > size)
+            if (received > size) {
               throw const OtaDartException('Download exceeded signed size');
+            }
             await file.writeFrom(chunk);
             // Bound UI rebuild notifications even on very fast networks.
             if (received == size ||
@@ -539,8 +549,9 @@ class OtaDart {
               );
             }
           }
-          if (received != size)
+          if (received != size) {
             throw const OtaDartException('Incomplete download');
+          }
           await file.flush();
         } finally {
           await file.close();
@@ -568,8 +579,9 @@ class OtaDart {
       _emit(UpdateProgress(UpdatePhase.failed, message: error.toString()));
       rethrow;
     } finally {
-      if (temporary != null && await temporary.exists())
+      if (temporary != null && await temporary.exists()) {
         await temporary.delete(recursive: true);
+      }
     }
   }
 

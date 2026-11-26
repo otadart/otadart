@@ -1,3 +1,7 @@
+## 0.1.0-beta.4
+
+- README: Flutter versions — see the supported ones with `otadart flutter versions list`, switch with `otadart flutter use <version>`; patches keep their release's Flutter version.
+
 ## 0.1.0-beta.3
 
 - `OtaDart.start(appId: …)`: the recommended setup in one line — checks at launch and every 6 hours, confirms the launch so a crashing patch rolls back.

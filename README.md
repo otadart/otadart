@@ -46,7 +46,7 @@ Close and reopen the app to see the patch: it is applied on the next launch.
 ## Install
 
 ```sh
-flutter pub add otadart@0.1.0-beta.3
+flutter pub add otadart@0.1.0-beta.4
 ```
 
 `otadart init` adds it for you. Install the CLI with:
@@ -190,7 +190,7 @@ if (offer != null && offer.hasUpdate) {
 
 ## Requirements
 
-**Flutter version.** Each Flutter version has its own OTADart engine. See which ones are supported with `otadart flutter versions list`. Build with any of them, whatever Flutter is installed on your computer:
+**Flutter version.** Each Flutter version has its own OTADart engine. Supported now: **3.50.1** (Android and iOS) and **3.47.9** (Android). The live list: `otadart flutter versions list`. Need another version? Request it at https://otadart.dev/#/support/flutter. Build with any of them, whatever Flutter is installed on your computer:
 
 ```sh
 otadart flutter use 3.47.9   # this app builds with Flutter 3.47.9

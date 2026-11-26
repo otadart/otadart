@@ -1,3 +1,9 @@
+## 0.1.0-beta.3
+
+- `OtaDart.start(appId: …)`: the recommended setup in one line — checks at launch and every 6 hours, confirms the launch so a crashing patch rolls back.
+- Automatic checks can be turned on or off and timed: `checkOnLaunch`, `firstCheckAfter`, `autoCheck`, `checkEvery`, `healthyAfter`; `automaticUpdatesEnabled` at runtime.
+- `otadart init` adds `OtaDart.start` to `lib/main.dart` for you.
+
 ## 0.1.0-beta.2
 
 - Documented free self-hosting and linked the setup guide.

@@ -8,6 +8,13 @@ import 'native_bridge.dart';
 /// Connects your Flutter app to OTADart.
 ///
 /// ```dart
+/// OtaDart.start(appId: 'YOUR-APP-ID'); // after runApp: checks, downloads,
+///                                      // confirms the launch, rechecks
+/// ```
+///
+/// Or step by step:
+///
+/// ```dart
 /// final updates = await OtaDart.initialize(appId: 'YOUR-APP-ID');
 /// await updates.checkForUpdate();        // download + verify in the background
 /// await updates.markCurrentBootHealthy(); // once your app is working
@@ -102,7 +109,88 @@ class OtaDart {
     }
   }
 
+  /// The recommended setup in one call. Returns null in `flutter run` and in
+  /// builds not made with `otadart release`, so it is safe everywhere.
+  ///
+  /// ```dart
+  /// runApp(const MyApp());
+  /// OtaDart.start(appId: 'YOUR-APP-ID');
+  /// ```
+  ///
+  /// Defaults (all optional):
+  /// - [checkOnLaunch] `true`: check right away, after [firstCheckAfter]
+  ///   (default no delay). A patch downloads in the background and applies
+  ///   on the next launch.
+  /// - [autoCheck] `true`: keep checking while the app runs, every
+  ///   [checkEvery] (15 minutes to 7 days; default `check_interval_seconds`
+  ///   from otadart.yaml, 6 hours). Turn it on or off later with
+  ///   [startAutomaticUpdates] / [stopAutomaticUpdates].
+  /// - [healthyAfter] 10 seconds: confirm this launch works. If a patch
+  ///   crashes the app before that, the next launch rolls back to the
+  ///   previous code. Pass null to confirm it yourself with
+  ///   [markCurrentBootHealthy].
+  ///
+  /// ```dart
+  /// OtaDart.start(
+  ///   appId: 'YOUR-APP-ID',
+  ///   checkEvery: const Duration(hours: 1),
+  ///   firstCheckAfter: const Duration(seconds: 5),
+  /// );
+  /// OtaDart.start(appId: 'YOUR-APP-ID', autoCheck: false); // launch only
+  /// ```
+  static Future<OtaDart?> start({
+    required String appId,
+    String? publicKey,
+    bool checkOnLaunch = true,
+    bool autoCheck = true,
+    Duration? checkEvery,
+    Duration firstCheckAfter = Duration.zero,
+    Duration? healthyAfter = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final updates = await tryInitialize(
+      appId: appId,
+      publicKey: publicKey,
+      timeout: timeout,
+    );
+    if (updates == null) return null;
+    final every = checkEvery ?? updates._checkInterval;
+    if (autoCheck) {
+      updates.startAutomaticUpdates(
+        UpdatePolicy(
+          automatic: true,
+          interval: every,
+          initialDelay: checkOnLaunch ? firstCheckAfter : every,
+        ),
+      );
+    } else {
+      updates.stopAutomaticUpdates();
+      if (checkOnLaunch) {
+        Timer(firstCheckAfter, () async {
+          if (updates._closed) return;
+          try {
+            await updates.checkForUpdate();
+          } catch (_) {
+            // Reported through progress; keep the running app.
+          }
+        });
+      }
+    }
+    if (healthyAfter != null) {
+      Timer(healthyAfter, () async {
+        if (updates._closed) return;
+        try {
+          await updates.markCurrentBootHealthy();
+        } catch (_) {
+          // The engine records the launch; nothing to do here.
+        }
+      });
+    }
+    return updates;
+  }
+
   Timer? _automaticTimer;
+  Duration _checkInterval = const Duration(hours: 6);
   int _scheduleGeneration = 0;
   OtaDart._(
     this._native,
@@ -143,6 +231,9 @@ class OtaDart {
 
     schedule(policy.initialDelay);
   }
+
+  /// True while scheduled checks are on (see [startAutomaticUpdates]).
+  bool get automaticUpdatesEnabled => _automaticTimer != null;
 
   /// Stop scheduled checks started by [startAutomaticUpdates].
   void stopAutomaticUpdates() {
@@ -241,6 +332,7 @@ class OtaDart {
           ? manifest['flavor'] as String
           : null,
     );
+    client._checkInterval = policy.interval;
     client.startAutomaticUpdates(policy);
     return client;
   }

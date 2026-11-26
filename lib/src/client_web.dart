@@ -204,6 +204,41 @@ class OtaDart {
     }
   }
 
+  /// The recommended setup in one call, with the same options as on Android
+  /// and iOS: checks for a newer web build on launch and every [checkEvery]
+  /// (default 6 hours). [healthyAfter] has no effect on the web.
+  static Future<OtaDart?> start({
+    required String appId,
+    String? publicKey,
+    bool checkOnLaunch = true,
+    bool autoCheck = true,
+    Duration? checkEvery,
+    Duration firstCheckAfter = Duration.zero,
+    Duration? healthyAfter = const Duration(seconds: 10),
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    final updates = await tryInitialize(appId: appId, timeout: timeout);
+    if (updates == null) return null;
+    final every = checkEvery ?? const Duration(hours: 6);
+    if (autoCheck) {
+      updates.startAutomaticUpdates(
+        UpdatePolicy(
+          automatic: true,
+          interval: every,
+          initialDelay: checkOnLaunch ? firstCheckAfter : every,
+        ),
+      );
+    } else if (checkOnLaunch) {
+      Timer(firstCheckAfter, () {
+        if (!updates._closed) updates.checkForUpdate().ignore();
+      });
+    }
+    return updates;
+  }
+
+  /// True while scheduled checks are on (see [startAutomaticUpdates]).
+  bool get automaticUpdatesEnabled => _automaticTimer != null;
+
   Timer? _automaticTimer;
 
   /// Checks for a newer web build on a schedule (see [UpdatePolicy]).

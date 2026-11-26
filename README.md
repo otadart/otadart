@@ -21,6 +21,10 @@ Your app checks for a signed patch, downloads it in the background, and applies 
 
 Measured on a real iPhone 17 Pro and Samsung Galaxy A15 (November 2026). Details: [otadart.dev/docs/performance](https://otadart.dev/#/docs/performance).
 
+## Self-hosting
+
+Run the OTADart update service on your own server for free. [Self-hosting setup guide](https://otadart.dev/docs/self-hosting)
+
 ## Test on a simulator or emulator
 
 Try a release and its patches before they reach real users:
@@ -42,7 +46,7 @@ Close and reopen the app to see the patch: it is applied on the next launch.
 ## Install
 
 ```sh
-flutter pub add otadart@0.1.0-beta.1
+flutter pub add otadart@0.1.0-beta.2
 ```
 
 `otadart init` adds it for you. Install the CLI with:

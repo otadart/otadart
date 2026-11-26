@@ -1,3 +1,13 @@
+## 0.1.0-beta.1
+
+- First beta: Android and iOS releases and patches work end to end on real phones.
+- README: how to try releases and patches on the iOS Simulator and Android emulator (`otadart release ios --simulator`).
+- README: what OTADart does, measured on a real iPhone 17 Pro and Samsung Galaxy A15.
+
+## 0.1.0-dev.7
+
+- README: patches update images, fonts and other assets — not just code; patch sizes and app speed measured on a real iPhone 17 Pro and Samsung Galaxy A15.
+
 ## 0.1.0-dev.6
 
 - Web support: the package now compiles for Flutter web (JavaScript and WebAssembly). On the web it detects a newer deployed build from `version.json`; `availableUpdate()` reports its `version`, and `restart()` reloads the page onto it. Same API on every platform.

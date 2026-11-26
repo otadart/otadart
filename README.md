@@ -6,10 +6,43 @@ Connect your Flutter app to [OTADart](https://otadart.dev) — over-the-air Dart
 
 Your app checks for a signed patch, downloads it in the background, and applies it the next time it opens. If a patched launch fails, it falls back automatically.
 
+> **Patches update your assets too — not just code.** Most code-push tools send code only. OTADart also sends changed and new images, fonts and other files in the same patch as your Dart code. Tested on a real iPhone 17 Pro and Samsung Galaxy A15: a patch that added a new photo showed it on both phones.
+
+## Why OTADart
+
+| | |
+|---|---|
+| **Images, fonts & other assets** | ✅ Sent in the patch |
+| **Every patch signed & verified** | ✅ Always, on every plan |
+| **Free plan** | ✅ 10,000 patch activations a month |
+| **Test before your users** | ✅ Releases and patches run on the iOS Simulator and Android emulator too |
+| Automatic rollback | On the phone, plus on the server when a patch fails on too many devices |
+| App speed after a patch | Same as the store build (Android 104 ms vs 108 ms · iPhone 66 ms vs 79 ms) |
+
+Measured on a real iPhone 17 Pro and Samsung Galaxy A15 (November 2026). Details: [otadart.dev/docs/performance](https://otadart.dev/#/docs/performance).
+
+## Test on a simulator or emulator
+
+Try a release and its patches before they reach real users:
+
+```sh
+# Android emulator
+otadart release android
+otadart preview android --device-id emulator-5554
+otadart patch android
+
+# iOS Simulator (testing only — not for the App Store)
+otadart release ios --simulator
+otadart preview ios
+otadart patch ios --simulator
+```
+
+Close and reopen the app to see the patch: it is applied on the next launch.
+
 ## Install
 
 ```sh
-flutter pub add otadart
+flutter pub add otadart@0.1.0-beta.1
 ```
 
 `otadart init` adds it for you. Install the CLI with:
@@ -111,7 +144,7 @@ if (offer != null && offer.hasUpdate) {
 
 ## Requirements
 
-Patches apply to app builds made with `otadart release`. Native code, plugins, permissions and assets need a store release. The track a build listens to is set when it is released.
+Patches apply to app builds made with `otadart release`. Dart code and assets (images, fonts, other files) ship in a patch; native code, plugins and permissions need a store release. The track a build listens to is set when it is released.
 
 ## Links
 

@@ -236,6 +236,9 @@ class OtaDart {
     return updates;
   }
 
+  /// Patch release notes are for Android and iOS; the web has none.
+  Future<String?> currentPatchNotes() async => null;
+
   /// True while scheduled checks are on (see [startAutomaticUpdates]).
   bool get automaticUpdatesEnabled => _automaticTimer != null;
 

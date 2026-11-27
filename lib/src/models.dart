@@ -27,10 +27,14 @@ class UpdateResult {
   final bool readyOnNextLaunch;
   final bool rollbackToBase;
   final int patchNumber;
+
+  /// Release notes of the downloaded patch, if it has any.
+  final String? notes;
   const UpdateResult({
     required this.readyOnNextLaunch,
     this.rollbackToBase = false,
     this.patchNumber = 0,
+    this.notes,
   });
 }
 
@@ -101,11 +105,15 @@ class AvailableUpdate {
 
   /// On the web: the newer build version that is live (e.g. `1.2.1+6`).
   final String? version;
+
+  /// Release notes of the offered patch ("What's new"), if it has any.
+  final String? notes;
   const AvailableUpdate(
     this.availability, {
     this.patchNumber = 0,
     this.downloadBytes = 0,
     this.version,
+    this.notes,
   });
   bool get hasUpdate =>
       availability == UpdateAvailability.patchAvailable ||
@@ -114,7 +122,8 @@ class AvailableUpdate {
   String toString() =>
       'AvailableUpdate(${availability.name}, '
       'patch: $patchNumber, bytes: $downloadBytes'
-      '${version == null ? '' : ', version: $version'})';
+      '${version == null ? '' : ', version: $version'}'
+      '${notes == null ? '' : ', notes: ${notes!.length} chars'})';
 }
 
 /// Everything the app can know about its release and patches.

@@ -1,3 +1,7 @@
+## 0.1.0-beta.6
+
+- Release notes: `AvailableUpdate.notes`, `UpdateResult.notes` and `currentPatchNotes()` for a "What's new" screen. Set them with `otadart patch --notes` or in the console.
+
 ## 0.1.0-beta.5
 
 - README: OTADart is free and unlimited.

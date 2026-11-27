@@ -46,7 +46,7 @@ Close and reopen the app to see the patch: it is applied on the next launch.
 ## Install
 
 ```sh
-flutter pub add otadart@0.1.0-beta.5
+flutter pub add otadart@0.1.0-beta.6
 ```
 
 `otadart init` adds it for you. Install the CLI with:
@@ -142,6 +142,23 @@ switch (offer.availability) {
 }
 ```
 
+## What's new (release notes)
+
+Give a patch release notes when you publish it — `otadart patch all --notes "Fixed the login button"` — or add them later in the console. Your app gets them:
+
+```dart
+final updates = await OtaDart.start(appId: 'YOUR-APP-ID');
+
+// Notes of the patch running now: show them once after an update.
+final notes = await updates?.currentPatchNotes();
+
+// Notes of a patch before it is downloaded.
+final offer = await updates?.availableUpdate();
+print(offer?.notes);
+```
+
+`null` when a patch has no notes or the store build is running.
+
 ## Download progress
 
 ```dart
@@ -163,7 +180,8 @@ if (result.readyOnNextLaunch) { /* ask the user to restart */ }
 | `OtaDart.isSupported()` | `true` when this build can receive patches |
 | `info()` | Version, patch numbers, track, platform and health in one call |
 | `currentPatch()` / `nextPatch()` | Patch running now / patch applied on next launch |
-| `availableUpdate()` | What the service offers, without downloading |
+| `availableUpdate()` | What the service offers, without downloading (with its release notes) |
+| `currentPatchNotes()` | Release notes of the patch running now ("What's new") |
 | `update()` / `checkForUpdate()` | Download and stage a patch; applies on next launch |
 | `progress` / `currentProgress` | Update progress events |
 | `startAutomaticUpdates(policy)` / `stopAutomaticUpdates()` | Turn scheduled checks on / off |

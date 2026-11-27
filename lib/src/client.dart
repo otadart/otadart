@@ -557,6 +557,7 @@ class OtaDart {
             ? UpdateAvailability.upToDate
             : UpdateAvailability.readyOnNextLaunch,
         patchNumber: number,
+        notes: _offerNotes,
       );
     }
     return AvailableUpdate(
@@ -565,6 +566,7 @@ class OtaDart {
       downloadBytes: plan['downloadRequired'] == true
           ? plan['transferSize'] as int? ?? 0
           : 0,
+      notes: _offerNotes,
     );
   }
 
@@ -617,6 +619,8 @@ class OtaDart {
         'clientId': installationId,
         if (wanted != null && wanted != release['channel']) 'track': wanted,
         ...await _launchReport(),
+        // Ask for release notes (the offered patch's and the running one's).
+        'notes': true,
       }),
     );
     final response = await request.close().timeout(timeout);
@@ -631,7 +635,35 @@ class OtaDart {
       }
       bytes.addAll(chunk);
     }
-    return Map<String, Object?>.from(jsonDecode(utf8.decode(bytes)) as Map);
+    final offer = Map<String, Object?>.from(
+      jsonDecode(utf8.decode(bytes)) as Map,
+    );
+    // Release notes are display text next to the signed offer; the native
+    // runtime only accepts the offer's own fields.
+    final notes = offer.remove('notes');
+    final current = offer.remove('currentNotes');
+    _offerNotes = notes is String && notes.isNotEmpty ? notes : null;
+    if (offer.containsKey('action') || current != null) {
+      _currentNotes = current is String && current.isNotEmpty ? current : null;
+    }
+    return offer;
+  }
+
+  String? _offerNotes;
+  String? _currentNotes;
+
+  /// Release notes of the patch running now ("What's new"), or null for the
+  /// store build or a patch without notes. Asks the update service; nothing
+  /// is downloaded.
+  ///
+  /// ```dart
+  /// final notes = await updates.currentPatchNotes();
+  /// if (notes != null) showWhatsNew(notes);
+  /// ```
+  Future<String?> currentPatchNotes() async {
+    if (_closed) throw const OtaDartException('Client is closed');
+    await _fetchOffer();
+    return _currentNotes;
   }
 
   /// Check for a patch now and download it if there is one. It applies on the
@@ -731,6 +763,7 @@ class OtaDart {
         readyOnNextLaunch: changed,
         rollbackToBase: rollback,
         patchNumber: number,
+        notes: rollback ? null : _offerNotes,
       );
     } catch (error) {
       _emit(UpdateProgress(UpdatePhase.failed, message: error.toString()));

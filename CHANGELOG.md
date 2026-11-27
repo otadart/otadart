@@ -1,3 +1,7 @@
+## 0.1.0-beta.5
+
+- README: OTADart is free and unlimited.
+
 ## 0.1.0-beta.4
 
 - README: Flutter versions — see the supported ones with `otadart flutter versions list`, switch with `otadart flutter use <version>`; patches keep their release's Flutter version.

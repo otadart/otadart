@@ -1,3 +1,7 @@
+## 0.1.0-beta.7
+
+- README: release notes ("What's new") listed with OTADart's features.
+
 ## 0.1.0-beta.6
 
 - Release notes: `AvailableUpdate.notes`, `UpdateResult.notes` and `currentPatchNotes()` for a "What's new" screen. Set them with `otadart patch --notes` or in the console.

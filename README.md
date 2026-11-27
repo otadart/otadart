@@ -16,6 +16,7 @@ Your app checks for a signed patch, downloads it in the background, and applies 
 | **Every patch signed & verified** | ✅ Always |
 | **Price** | ✅ Free and unlimited |
 | **Test before your users** | ✅ Releases and patches run on the iOS Simulator and Android emulator too |
+| **Release notes** | ✅ Optional "What's new" for each patch — `otadart patch --notes` or the console; your app reads them with `currentPatchNotes()` |
 | Automatic rollback | On the phone, plus on the server when a patch fails on too many devices |
 | App speed after a patch | Same as the store build (Android 104 ms vs 108 ms · iPhone 66 ms vs 79 ms) |
 
@@ -46,7 +47,7 @@ Close and reopen the app to see the patch: it is applied on the next launch.
 ## Install
 
 ```sh
-flutter pub add otadart@0.1.0-beta.6
+flutter pub add otadart@0.1.0-beta.7
 ```
 
 `otadart init` adds it for you. Install the CLI with:
